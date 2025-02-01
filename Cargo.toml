@@ -1,0 +1,16 @@
+[package]
+name = "pinger"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# tao = "0.31"
+# cocoa = "0.25"
+# objc = "0.2"
+tray-icon = "0.19.2"
+tao = "0.31"
+rand = "0.8"
+surge-ping = "0.8.0"
+tokio = { version = "1.0", features = ["full"] }
