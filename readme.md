@@ -1,5 +1,9 @@
 # Pinger
 
+<p align="center">
+  <img src="icons/icon.png" width="128" height="128" alt="Pinger Icon">
+</p>
+
 (below readme + bulk of the code is generated using cursor, mostly as an experiment in using cursor to generate code)
 
 A lightweight macOS system tray application that monitors network latency in real-time. Perfect for digital nomads, remote workers, and anyone who needs to keep an eye on their connection quality.
