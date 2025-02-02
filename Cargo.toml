@@ -18,6 +18,7 @@ array-init = "2.1"
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.25"
 objc = "0.2"
+core-foundation = { version = "0.9", features = ["link"] }
 
 [package.metadata.bundle]
 name = "Pinger"

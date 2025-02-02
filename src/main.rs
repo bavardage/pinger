@@ -266,14 +266,23 @@ enum UserEvent {
     MenuEvent(tray_icon::menu::MenuEvent),
 }
 
+#[cfg(target_os = "macos")]
+mod login_item;
+
 fn main() {
     #[cfg(target_os = "macos")]
     {
         use cocoa::appkit::{NSApplication, NSApplicationActivationPolicy};
         use cocoa::base::nil;
+        use crate::login_item::add_to_login_items;
+
         unsafe {
             let app = NSApplication::sharedApplication(nil);
             app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyProhibited);
+        }
+        match add_to_login_items() {
+            Ok(_) => println!("Successfully added to login items"),
+            Err(e) => eprintln!("Failed to add to login items: {}", e),
         }
     }
 
@@ -320,7 +329,7 @@ fn main() {
             if event.id == mode_toggle.id() {
                 monitor_clone.toggle_plane_mode();
             } else if event.id == quit_item.id() {
-                *control_flow = ControlFlow::Exit;
+                        *control_flow = ControlFlow::Exit;
             }
         }
         
