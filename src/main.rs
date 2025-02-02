@@ -23,8 +23,7 @@ const VALUE_HISTORY: usize = 10;
 const PING_FAILED: u64 = u64::MAX;
 const NO_DATA: u64 = 0;
 const PING_PAYLOAD_SIZE: usize = 64;
-// const PING_TARGET: &str = "8.8.8.8";  // Google DNS
-const PING_TARGET: &str = "34.91.238.70";
+const PING_TARGET: &str = "8.8.8.8";  // Google DNS
 
 struct LatencyHistory {
     values: [AtomicU64; VALUE_HISTORY],
