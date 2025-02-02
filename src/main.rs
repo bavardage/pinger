@@ -1,13 +1,22 @@
-use tray_icon::{TrayIconBuilder, menu::{Menu, MenuItem, MenuEvent, PredefinedMenuItem, CheckMenuItem}, Icon};
-use tao::{event_loop::{ControlFlow, EventLoopBuilder}, event::Event};
 use std::{
-    time::{Duration, Instant},
-    sync::atomic::{AtomicU64, AtomicUsize, AtomicBool, Ordering},
-    sync::Arc,
     net::IpAddr,
+    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    sync::Arc,
+    time::{Duration, Instant},
 };
 use surge_ping::{Client, Config, PingIdentifier, PingSequence};
+use tao::{
+    event::Event,
+    event_loop::{ControlFlow, EventLoopBuilder},
+};
 use tokio::runtime::Runtime;
+use tray_icon::{
+    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+    Icon, TrayIconBuilder,
+};
+
+#[cfg(target_os = "macos")]
+mod login_item;
 
 // Configuration constants
 const VALUE_HISTORY: usize = 10;
@@ -33,12 +42,17 @@ impl LatencyHistory {
     fn add(&self, value: u64) {
         let index = self.current_index.load(Ordering::Relaxed);
         self.values[index].store(value, Ordering::Relaxed);
-        self.current_index.store((index + 1) % VALUE_HISTORY, Ordering::Relaxed);
+        self.current_index
+            .store((index + 1) % VALUE_HISTORY, Ordering::Relaxed);
     }
 
     fn latest(&self) -> u64 {
         let index = self.current_index.load(Ordering::Relaxed);
-        let prev_index = if index == 0 { VALUE_HISTORY - 1 } else { index - 1 };
+        let prev_index = if index == 0 {
+            VALUE_HISTORY - 1
+        } else {
+            index - 1
+        };
         self.values[prev_index].load(Ordering::Relaxed)
     }
 
@@ -63,12 +77,12 @@ impl IconGenerator {
             for x in 0..32 {
                 let dx = x as f32 - 15.5;
                 let dy = y as f32 - 15.5;
-                
+
                 let on_line = (dx - dy).abs() < 2.0 || (dx + dy).abs() < 2.0;
                 icon_data.extend_from_slice(if on_line {
                     &[255, 0, 0, 255] // Red X
                 } else {
-                    &[0, 0, 0, 0]     // Transparent
+                    &[0, 0, 0, 0] // Transparent
                 });
             }
         }
@@ -83,11 +97,11 @@ impl IconGenerator {
                 let dx = x as f32 - 15.5;
                 let dy = y as f32 - 15.5;
                 let distance = (dx * dx + dy * dy).sqrt();
-                
+
                 icon_data.extend_from_slice(if distance < 13.0 {
-                    &color  // Colored circle
+                    &color // Colored circle
                 } else {
-                    &[0, 0, 0, 0]    // Transparent
+                    &[0, 0, 0, 0] // Transparent
                 });
             }
         }
@@ -144,12 +158,12 @@ impl LatencyMonitor {
     fn toggle_plane_mode(&self) -> bool {
         let new_state = !self.plane_mode.load(Ordering::Relaxed);
         self.plane_mode.store(new_state, Ordering::Relaxed);
-        
+
         // Update thresholds based on mode
         if new_state {
             self.thresholds.set_thresholds(600, 1000); // Plane mode thresholds
         } else {
-            self.thresholds.set_thresholds(30, 100);  // Normal thresholds
+            self.thresholds.set_thresholds(30, 100); // Normal thresholds
         }
         new_state
     }
@@ -183,7 +197,10 @@ impl LatencyMonitor {
     fn get_status(&self) -> LatencyStatus {
         let current = self.history.latest();
         let all = self.history.all_values();
-        LatencyStatus { current, history: all }
+        LatencyStatus {
+            current,
+            history: all,
+        }
     }
 }
 
@@ -200,7 +217,8 @@ impl UiGenerator {
             return String::new();
         }
 
-        let valid_values: Vec<_> = values.iter()
+        let valid_values: Vec<_> = values
+            .iter()
             .filter(|&&v| v != NO_DATA && v != PING_FAILED)
             .collect();
 
@@ -214,7 +232,8 @@ impl UiGenerator {
 
         const BLOCKS: &[char] = &['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
-        values.iter()
+        values
+            .iter()
             .rev()
             .map(|&v| match v {
                 NO_DATA => BLOCKS[0],
@@ -234,10 +253,10 @@ impl UiGenerator {
     fn get_color_for_latency(latency: u64, thresholds: &ThresholdConfig) -> (u8, u8, u8) {
         let (yellow, red) = thresholds.get_thresholds();
         match latency {
-            PING_FAILED => (255, 0, 0),  // Red
-            v if v < yellow => (0, 255, 0),  // Green
-            v if v < red => (255, 255, 0), // Yellow
-            _ => (255, 0, 0), // Red
+            PING_FAILED => (255, 0, 0),     // Red
+            v if v < yellow => (0, 255, 0), // Green
+            v if v < red => (255, 255, 0),  // Yellow
+            _ => (255, 0, 0),               // Red
         }
     }
 
@@ -246,18 +265,19 @@ impl UiGenerator {
             return "Latency: Failed!".to_string();
         }
 
-        let history_text = status.history
+        let history_text = status
+            .history
             .iter()
             .take(5)
             .rev()
             .map(|&v| match v {
                 NO_DATA => String::from("--"),
                 PING_FAILED => String::from("✖"),
-                v => v.to_string()
+                v => v.to_string(),
             })
             .collect::<Vec<_>>()
             .join(", ");
-        
+
         format!("Recent latencies: {} ms", history_text)
     }
 }
@@ -266,19 +286,18 @@ enum UserEvent {
     MenuEvent(tray_icon::menu::MenuEvent),
 }
 
-#[cfg(target_os = "macos")]
-mod login_item;
-
 fn main() {
     #[cfg(target_os = "macos")]
     {
+        use crate::login_item::add_to_login_items;
         use cocoa::appkit::{NSApplication, NSApplicationActivationPolicy};
         use cocoa::base::nil;
-        use crate::login_item::add_to_login_items;
 
         unsafe {
             let app = NSApplication::sharedApplication(nil);
-            app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyProhibited);
+            app.setActivationPolicy_(
+                NSApplicationActivationPolicy::NSApplicationActivationPolicyProhibited,
+            );
         }
         match add_to_login_items() {
             Ok(_) => println!("Successfully added to login items"),
@@ -296,21 +315,23 @@ fn main() {
     MenuEvent::set_event_handler(Some(move |event| {
         let _ = proxy.send_event(UserEvent::MenuEvent(event));
     }));
-    
+
     let tray_menu = Menu::new();
     let latency_item = MenuItem::new("Latency: --ms", false, None);
     let sparkline_item = MenuItem::new("", false, None);
     let mode_toggle = CheckMenuItem::new("✈ Plane Mode", true, false, None);
     let quit_item = MenuItem::new("Quit", true, None);
-    
-    tray_menu.append_items(&[
-        &latency_item,
-        &sparkline_item,
-        &PredefinedMenuItem::separator(),
-        &mode_toggle,
-        &PredefinedMenuItem::separator(),
-        &quit_item,
-    ]).expect("Should append menu items");
+
+    tray_menu
+        .append_items(&[
+            &latency_item,
+            &sparkline_item,
+            &PredefinedMenuItem::separator(),
+            &mode_toggle,
+            &PredefinedMenuItem::separator(),
+            &quit_item,
+        ])
+        .expect("Should append menu items");
 
     let tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(tray_menu))
@@ -329,17 +350,17 @@ fn main() {
             if event.id == mode_toggle.id() {
                 monitor_clone.toggle_plane_mode();
             } else if event.id == quit_item.id() {
-                        *control_flow = ControlFlow::Exit;
+                *control_flow = ControlFlow::Exit;
             }
         }
-        
+
         if last_update.elapsed() >= Duration::from_secs(1) {
             let status = monitor.get_status();
-            
+
             // Update UI elements
             latency_item.set_text(UiGenerator::format_latency_text(&status));
             sparkline_item.set_text(UiGenerator::create_sparkline(&status.history));
-            
+
             // Update icon
             let icon = if status.current == PING_FAILED {
                 IconGenerator::create_x()
@@ -351,11 +372,18 @@ fn main() {
 
             // Update tooltip with current mode and thresholds
             let (yellow, red) = monitor.thresholds.get_thresholds();
-            let mode = if monitor.plane_mode.load(Ordering::Relaxed) { "Plane Mode" } else { "Normal Mode" };
+            let mode = if monitor.plane_mode.load(Ordering::Relaxed) {
+                "Plane Mode"
+            } else {
+                "Normal Mode"
+            };
             let tooltip = if status.current == PING_FAILED {
                 format!("Ping failed! ({mode})")
             } else {
-                format!("Latency: {}ms ({mode}, Y: {}ms, R: {}ms)", status.current, yellow, red)
+                format!(
+                    "Latency: {}ms ({mode}, Y: {}ms, R: {}ms)",
+                    status.current, yellow, red
+                )
             };
             tray_icon.set_tooltip(Some(&tooltip)).unwrap();
 
@@ -363,4 +391,3 @@ fn main() {
         }
     });
 }
-

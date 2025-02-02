@@ -1,3 +1,5 @@
+use core_foundation::{base::ToVoid, bundle::CFBundle};
+
 #[link(name = "CoreServices", kind = "framework")]
 extern "C" {
     pub static kLSSharedFileListSessionLoginItems: *const ::std::os::raw::c_void;
@@ -16,11 +18,6 @@ extern "C" {
         propertyKeys: *const ::std::os::raw::c_void,
     ) -> *const ::std::os::raw::c_void;
 }
-
-use core_foundation::{
-    base::ToVoid,
-    bundle::CFBundle,
-};
 
 pub fn add_to_login_items() -> Result<(), &'static str> {
     unsafe {
