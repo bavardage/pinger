@@ -1,0 +1,66 @@
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install clippy
+      run: rustup component add clippy
+    
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
+      
+    - name: Run tests
+      run: cargo test --verbose
+
+  build-mac:
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        brew install create-dmg
+        cargo install cargo-bundle
+    
+    - name: Build
+      run: cargo build --verbose
+      
+    - name: Run tests
+      run: cargo test --verbose
+      
+    - name: Create App Bundle and DMG
+      run: |
+        chmod +x build.sh
+        ./build.sh
+        
+    - name: Upload DMG
+      uses: actions/upload-artifact@v3
+      with:
+        name: Pinger-Mac
+        path: Pinger.dmg
+
+  build-other:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build
+      run: cargo build --verbose
+      
+    - name: Run tests
+      run: cargo test --verbose 

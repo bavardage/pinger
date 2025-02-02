@@ -267,22 +267,22 @@ enum UserEvent {
 }
 
 fn main() {
-    let runtime = Runtime::new().unwrap();
-    let monitor = LatencyMonitor::new(runtime);
-    monitor.clone().start_monitoring();
-
-    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
-    let proxy = event_loop.create_proxy();
-
     #[cfg(target_os = "macos")]
     {
         use cocoa::appkit::{NSApplication, NSApplicationActivationPolicy};
         use cocoa::base::nil;
         unsafe {
             let app = NSApplication::sharedApplication(nil);
-            app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyAccessory);
+            app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyProhibited);
         }
     }
+
+    let runtime = Runtime::new().unwrap();
+    let monitor = LatencyMonitor::new(runtime);
+    monitor.clone().start_monitoring();
+
+    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
+    let proxy = event_loop.create_proxy();
 
     MenuEvent::set_event_handler(Some(move |event| {
         let _ = proxy.send_event(UserEvent::MenuEvent(event));
@@ -353,7 +353,5 @@ fn main() {
             last_update = Instant::now();
         }
     });
-
-
 }
 
