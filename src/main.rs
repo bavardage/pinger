@@ -1,4 +1,4 @@
-use tray_icon::{TrayIconBuilder, menu::{Menu, MenuItem, MenuEvent}, Icon};
+use tray_icon::{TrayIconBuilder, menu::{Menu, MenuItem, MenuEvent, PredefinedMenuItem, CheckMenuItem}, Icon};
 use tao::{event_loop::{ControlFlow, EventLoopBuilder}, event::Event};
 use std::{
     time::{Duration, Instant},
@@ -14,7 +14,8 @@ const VALUE_HISTORY: usize = 10;
 const PING_FAILED: u64 = u64::MAX;
 const NO_DATA: u64 = 0;
 const PING_PAYLOAD_SIZE: usize = 64;
-const PING_TARGET: &str = "8.8.8.8";  // Google DNS
+// const PING_TARGET: &str = "8.8.8.8";  // Google DNS
+const PING_TARGET: &str = "34.91.238.70";
 
 struct LatencyHistory {
     values: [AtomicU64; VALUE_HISTORY],
@@ -259,14 +260,6 @@ impl UiGenerator {
         
         format!("Recent latencies: {} ms", history_text)
     }
-
-    fn format_mode_text(plane_mode: bool) -> String {
-        if plane_mode {
-            "✈ Switch to Normal Mode".to_string()
-        } else {
-            "🖥 Switch to Plane Mode".to_string()
-        }
-    }
 }
 
 enum UserEvent {
@@ -281,6 +274,16 @@ fn main() {
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
 
+    #[cfg(target_os = "macos")]
+    {
+        use cocoa::appkit::{NSApplication, NSApplicationActivationPolicy};
+        use cocoa::base::nil;
+        unsafe {
+            let app = NSApplication::sharedApplication(nil);
+            app.setActivationPolicy_(NSApplicationActivationPolicy::NSApplicationActivationPolicyAccessory);
+        }
+    }
+
     MenuEvent::set_event_handler(Some(move |event| {
         let _ = proxy.send_event(UserEvent::MenuEvent(event));
     }));
@@ -288,12 +291,17 @@ fn main() {
     let tray_menu = Menu::new();
     let latency_item = MenuItem::new("Latency: --ms", false, None);
     let sparkline_item = MenuItem::new("", false, None);
-    let mode_toggle = MenuItem::new("🖥 Switch to Plane Mode", true, None);
+    let mode_toggle = CheckMenuItem::new("✈ Plane Mode", true, false, None);
+    let quit_item = MenuItem::new("Quit", true, None);
     
-    tray_menu.append(&latency_item).expect("Should append menu item");
-    tray_menu.append(&sparkline_item).expect("Should append menu item");
-    tray_menu.append(&MenuItem::new("", false, None)).expect("Should append menu item"); // Separator
-    tray_menu.append(&mode_toggle).expect("Should append menu item");
+    tray_menu.append_items(&[
+        &latency_item,
+        &sparkline_item,
+        &PredefinedMenuItem::separator(),
+        &mode_toggle,
+        &PredefinedMenuItem::separator(),
+        &quit_item,
+    ]).expect("Should append menu items");
 
     let tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(tray_menu))
@@ -310,8 +318,9 @@ fn main() {
 
         if let Event::UserEvent(UserEvent::MenuEvent(event)) = event {
             if event.id == mode_toggle.id() {
-                let plane_mode = monitor_clone.toggle_plane_mode();
-                mode_toggle.set_text(UiGenerator::format_mode_text(plane_mode));
+                monitor_clone.toggle_plane_mode();
+            } else if event.id == quit_item.id() {
+                *control_flow = ControlFlow::Exit;
             }
         }
         
@@ -344,5 +353,7 @@ fn main() {
             last_update = Instant::now();
         }
     });
+
+
 }
 

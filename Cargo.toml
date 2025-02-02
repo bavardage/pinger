@@ -14,3 +14,20 @@ tao = "0.31"
 surge-ping = "0.8.0"
 tokio = { version = "1.0", features = ["full"] }
 array-init = "2.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.25"
+objc = "0.2"
+
+[package.metadata.bundle]
+name = "Pinger"
+identifier = "com.yourdomain.pinger"
+icon = ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png"]
+version = "1.0.0"
+copyright = "Copyright (c) Your Name 2024. All rights reserved."
+category = "Developer Tool"
+short_description = "A ping monitoring tool"
+long_description = """
+A system tray application that monitors ping latency to Google DNS,
+with visual indicators and airplane mode for high-latency networks.
+"""
