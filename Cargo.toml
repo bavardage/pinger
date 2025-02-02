@@ -21,7 +21,7 @@ objc = "0.2"
 
 [package.metadata.bundle]
 name = "Pinger"
-identifier = "com.yourdomain.pinger"
+identifier = "io.github.bavardage.pinger"
 icon = ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png"]
 version = "1.0.0"
 copyright = "Copyright (c) Your Name 2024. All rights reserved."
@@ -31,3 +31,5 @@ long_description = """
 A system tray application that monitors ping latency to Google DNS,
 with visual indicators and airplane mode for high-latency networks.
 """
+# Add these lines to prevent dock icon
+osx_properties = { "LSBackgroundOnly" = "1", "LSUIElement" = "1" }
