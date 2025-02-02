@@ -2,3 +2,10 @@
 
 # DMG installer files
 *.dmg
+
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
