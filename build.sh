@@ -6,6 +6,9 @@ cargo build --release
 # Create the app bundle
 cargo bundle --release
 
+# Delete any existing DMG file
+rm -f Pinger.dmg
+
 # Create DMG
 create-dmg \
   --volname "Pinger Installer" \

@@ -33,3 +33,4 @@ with visual indicators and airplane mode for high-latency networks.
 """
 # Add these lines to prevent dock icon
 osx_properties = { "LSBackgroundOnly" = "1", "LSUIElement" = "1" }
+osx_minimum_system_version = "10.16"  # Big Sur
